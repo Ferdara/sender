@@ -29,19 +29,23 @@ def get_balance(web3, address):
     return web3.eth.get_balance(address) / 10 ** 18
 
 def send_transaction(web3, private_key, to_address, amount):
-    account = web3.eth.account.from_key(private_key)
-    nonce = web3.eth.get_transaction_count(account.address)
-    tx = {
-        'nonce': nonce,
-        'to': to_address,
-        'value': web3.to_wei(amount, 'ether'),
-        'gas': 21000,
-        'gasPrice': web3.eth.gas_price
-    }
-    signed_tx = web3.eth.account.sign_transaction(tx, private_key)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    return web3.to_hex(tx_hash)
-
+    try:
+        account = web3.eth.account.from_key(private_key)
+        nonce = web3.eth.get_transaction_count(account.address)
+        tx = {
+            'nonce': nonce,
+            'to': to_address,
+            'value': web3.to_wei(amount, 'ether'),
+            'gas': 21000,
+            'gasPrice': web3.eth.gas_price
+        }
+        signed_tx = web3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        return web3.to_hex(tx_hash)
+    except ValueError as e:
+        log_message(f"Transaction failed: {e}")
+        raise
+        
 def save_to_file(filename, data):
     with open(filename, 'a') as f:
         f.write(data + "\n")
@@ -88,9 +92,9 @@ web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
 # Generate wallets
 wallets = [generate_wallet() for _ in range(num_transactions)]
 for wallet in wallets:
-    save_to_file("new privates.txt", wallet["private_key"])
-    save_to_file("new mnemonic.txt", wallet["mnemonic"])
-    save_to_file("new address.txt", wallet["address"])
+    save_to_file("new_privates.txt", wallet["private_key"])
+    save_to_file("new_mnemonic.txt", wallet["mnemonic"])
+    save_to_file("new_address.txt", wallet["address"])
     log_message(f"Generated wallet: {wallet['address']}")
     random_pause()
 
@@ -106,7 +110,7 @@ while transaction_count < num_transactions:
         balance = get_balance(web3, account.address)
 
         if balance > 0.002:
-            log_message(f"Success: Wallet {account.address} has sufficient balance ({balance} ETH).")
+            log_message(f"Wallet {account.address} is valid and has balance: {balance} ETH.")
             target_wallet = wallets[transaction_count % len(wallets)]
             amount_to_send = random.uniform(0.001, 0.002)
 
@@ -128,7 +132,7 @@ while transaction_count < num_transactions:
             transaction_count += 1
 
         else:
-            log_message(f"Failed: Wallet {account.address} has insufficient balance ({balance} ETH).")
+            log_message(f"Wallet {account.address} has insufficient balance or is invalid.")
             random_pause()
 
         if transaction_count >= num_transactions:
