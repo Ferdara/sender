@@ -9,7 +9,7 @@ NETWORKS = {
     "Arbitrum": "https://arb1.arbitrum.io/rpc",
     "Linea": "https://linea-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
     "Base": "https://mainnet.base.org/",
-    "Polygon": "https://polygon-rpc.com/",
+    "zkSync": "https://mainnet.era.zksync.io",
     "OP": "https://mainnet.optimism.io/",
 }
 
@@ -54,7 +54,7 @@ def random_pause():
 # User input
 num_transactions = int(input("Enter the number of transactions: "))
 print("Choose a network:")
-print("1: Arbitrum\n2: Linea\n3: Base\n4: Polygon\n5: OP\n6: Random")
+print("1: Arbitrum\n2: Linea\n3: Base\n4: zkSync\n5: OP\n6: Random")
 network_choice = int(input("Your choice: "))
 
 # Select network
