@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from web3 import Web3
 from mnemonic import Mnemonic
+from bip32utils import BIP32Key  # Для правильной генерации приватных ключей
 
 # Define network configurations
 NETWORKS = {
@@ -17,7 +18,9 @@ NETWORKS = {
 def generate_wallet():
     mnemo = Mnemonic("english")
     phrase = mnemo.generate(strength=128)
-    private_key = mnemo.to_seed(phrase).hex()[:64]
+    seed = mnemo.to_seed(phrase)
+    bip32_root_key_obj = BIP32Key.fromEntropy(seed)
+    private_key = bip32_root_key_obj.ChildKey(0).ChildKey(0).PrivateKey().hex()  # Приватный ключ с использованием BIP32
     account = Web3().eth.account.from_key(private_key)
     return {
         "mnemonic": phrase,
@@ -26,18 +29,30 @@ def generate_wallet():
     }
 
 def get_balance(web3, address):
-    return web3.eth.get_balance(address) / 10 ** 18
+    return web3.eth.get_balance(address) / 10 ** 18  # Баланс в ETH
 
 def send_transaction(web3, private_key, to_address, amount):
     try:
         account = web3.eth.account.from_key(private_key)
         nonce = web3.eth.get_transaction_count(account.address)
+        gas_price = web3.eth.gas_price
+        gas_limit = 21000
+        
+        # Оценка стоимости газа
+        gas_fee_estimate = gas_limit * gas_price
+        
+        # Проверка, достаточно ли средств
+        balance = get_balance(web3, account.address)
+        total_cost = gas_fee_estimate + amount
+        if balance < total_cost:
+            raise ValueError(f"Insufficient funds for transaction. Balance: {balance} ETH, Required: {total_cost} ETH")
+        
         tx = {
             'nonce': nonce,
             'to': to_address,
             'value': web3.to_wei(amount, 'ether'),
-            'gas': 21000,
-            'gasPrice': web3.eth.gas_price
+            'gas': gas_limit,
+            'gasPrice': gas_price
         }
         signed_tx = web3.eth.account.sign_transaction(tx, private_key)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -45,7 +60,7 @@ def send_transaction(web3, private_key, to_address, amount):
     except ValueError as e:
         log_message(f"Transaction failed: {e}")
         raise
-        
+
 def save_to_file(filename, data):
     with open(filename, 'a') as f:
         f.write(data + "\n")
@@ -110,7 +125,7 @@ while transaction_count < num_transactions:
         balance = get_balance(web3, account.address)
 
         if balance > 0.002:
-            log_message(f"Wallet {account.address} is valid and has balance: {balance} ETH.")
+            log_message(f"Wallet {account.address} has balance: {balance} ETH.")
             target_wallet = wallets[transaction_count % len(wallets)]
             amount_to_send = random.uniform(0.001, 0.002)
 
@@ -119,20 +134,18 @@ while transaction_count < num_transactions:
             log_message(f"Transaction sent: {tx_hash}")
             random_pause()
 
-            # Send back maximum from generated wallet
-            target_web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
-            target_balance = get_balance(target_web3, target_wallet["address"])
-            max_send = target_balance - 0.0005  # Reserve for gas fees
-
+            # Send funds back from generated wallet
+            target_balance = get_balance(web3, target_wallet["address"])
+            max_send = target_balance - 0.0005  # Оставляем немного для газовых сборов
             if max_send > 0:
-                return_tx_hash = send_transaction(target_web3, target_wallet["private_key"], account.address, max_send)
+                return_tx_hash = send_transaction(web3, target_wallet["private_key"], account.address, max_send)
                 log_message(f"Returned funds: {return_tx_hash}")
                 random_pause()
 
             transaction_count += 1
 
         else:
-            log_message(f"Wallet {account.address} has insufficient balance or is invalid.")
+            log_message(f"Wallet {account.address} has insufficient balance.")
             random_pause()
 
         if transaction_count >= num_transactions:
