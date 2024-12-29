@@ -6,6 +6,9 @@ from web3 import Web3
 from mnemonic import Mnemonic
 from eth_account import Account
 
+# Включаем поддержку мнемонических фраз
+Account.enable_unaudited_hdwallet_features()
+
 # Define network configurations
 NETWORKS = {
     "Arbitrum": "https://arb1.arbitrum.io/rpc",
