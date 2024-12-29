@@ -1,13 +1,13 @@
 import random
 import time
 import json
+from datetime import datetime
 from web3 import Web3
 from mnemonic import Mnemonic
 
 # Define network configurations
 NETWORKS = {
     "Arbitrum": "https://arb1.arbitrum.io/rpc",
-    "Linea": "https://linea-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
     "Base": "https://mainnet.base.org/",
     "zkSync": "https://mainnet.era.zksync.io",
     "OP": "https://mainnet.optimism.io/",
@@ -46,23 +46,43 @@ def save_to_file(filename, data):
     with open(filename, 'a') as f:
         f.write(data + "\n")
 
+def log_message(message):
+    with open("Log.txt", 'a') as log_file:
+        log_file.write(f"{datetime.now()} - {message}\n")
+
+def initialize_log_file():
+    try:
+        with open("Log.txt", 'r') as log_file:
+            if log_file.read().strip():
+                with open("Log.txt", 'a') as log_file:
+                    log_file.write("\n------------------\n")
+    except FileNotFoundError:
+        with open("Log.txt", 'w') as log_file:
+            log_file.write("")
+
 def random_pause():
     pause_duration = random.randint(5, 7)  # Random pause between 5 and 7 seconds
-    print(f"Pausing for {pause_duration} seconds...")
+    log_message(f"Pausing for {pause_duration} seconds...")
     time.sleep(pause_duration)
+
+# Initialize log file
+initialize_log_file()
 
 # User input
 num_transactions = int(input("Enter the number of transactions: "))
+log_message(f"User requested {num_transactions} transactions.")
+
 print("Choose a network:")
-print("1: Arbitrum\n2: Linea\n3: Base\n4: zkSync\n5: OP\n6: Random")
+print("1: Arbitrum\n2: Base\n3: zkSync\n4: OP\n5: Random")
 network_choice = int(input("Your choice: "))
 
 # Select network
-if network_choice == 6:
+if network_choice == 5:
     selected_network = random.choice(list(NETWORKS.keys()))
 else:
     selected_network = list(NETWORKS.keys())[network_choice - 1]
 
+log_message(f"Selected network: {selected_network}")
 web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
 
 # Generate wallets
@@ -71,6 +91,7 @@ for wallet in wallets:
     save_to_file("new privates.txt", wallet["private_key"])
     save_to_file("new mnemonic.txt", wallet["mnemonic"])
     save_to_file("new address.txt", wallet["address"])
+    log_message(f"Generated wallet: {wallet['address']}")
     random_pause()
 
 # Load private keys from file
@@ -85,13 +106,13 @@ while transaction_count < num_transactions:
         balance = get_balance(web3, account.address)
 
         if balance > 0.002:
-            print(f"Success: Wallet {account.address} has sufficient balance.")
+            log_message(f"Success: Wallet {account.address} has sufficient balance ({balance} ETH).")
             target_wallet = wallets[transaction_count % len(wallets)]
             amount_to_send = random.uniform(0.001, 0.002)
 
             # Send random amount
             tx_hash = send_transaction(web3, private_key, target_wallet["address"], amount_to_send)
-            print(f"Transaction sent: {tx_hash}")
+            log_message(f"Transaction sent: {tx_hash}")
             random_pause()
 
             # Send back maximum from generated wallet
@@ -101,13 +122,13 @@ while transaction_count < num_transactions:
 
             if max_send > 0:
                 return_tx_hash = send_transaction(target_web3, target_wallet["private_key"], account.address, max_send)
-                print(f"Returned funds: {return_tx_hash}")
+                log_message(f"Returned funds: {return_tx_hash}")
                 random_pause()
 
             transaction_count += 1
 
         else:
-            print(f"Failed: Wallet {account.address} has insufficient balance.")
+            log_message(f"Failed: Wallet {account.address} has insufficient balance ({balance} ETH).")
             random_pause()
 
         if transaction_count >= num_transactions:
