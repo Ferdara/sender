@@ -6,7 +6,6 @@ from web3 import Web3
 from mnemonic import Mnemonic
 from eth_account import Account
 
-# Включаем поддержку мнемонических фраз
 Account.enable_unaudited_hdwallet_features()
 
 # Define network configurations
@@ -20,8 +19,8 @@ NETWORKS = {
 # Helper functions
 def generate_wallet():
     mnemo = Mnemonic("english")
-    phrase = mnemo.generate(strength=128)  # Generate mnemonic phrase
-    acct = Account.from_mnemonic(phrase)  # Generate wallet from mnemonic
+    phrase = mnemo.generate(strength=128)
+    acct = Account.from_mnemonic(phrase)
     return {
         "mnemonic": phrase,
         "private_key": acct._private_key.hex(),
@@ -29,7 +28,7 @@ def generate_wallet():
     }
 
 def get_balance(web3, address):
-    return web3.eth.get_balance(address) / 10 ** 18  # Convert balance to ETH
+    return web3.eth.get_balance(address) / 10 ** 18
 
 def send_transaction(web3, private_key, to_address, amount):
     try:
@@ -37,20 +36,23 @@ def send_transaction(web3, private_key, to_address, amount):
         nonce = web3.eth.get_transaction_count(account.address)
         gas_price = web3.eth.gas_price
         gas_limit = 21000
-        
-        # Estimate gas fee
+
+        # Estimate gas fee in wei
         gas_fee_estimate = gas_limit * gas_price
-        
+
+        # Convert amount to wei
+        amount_in_wei = web3.to_wei(amount, 'ether')
+
         # Check if the balance is sufficient for the transaction
-        balance = get_balance(web3, account.address)
-        total_cost = gas_fee_estimate + amount
+        balance = web3.eth.get_balance(account.address)  # Balance in wei
+        total_cost = gas_fee_estimate + amount_in_wei
         if balance < total_cost:
-            raise ValueError(f"Insufficient funds for transaction. Balance: {balance} ETH, Required: {total_cost} ETH")
-        
+            raise ValueError(f"Insufficient funds for transaction. Balance: {balance / 10**18} ETH, Required: {total_cost / 10**18} ETH")
+
         tx = {
             'nonce': nonce,
             'to': to_address,
-            'value': web3.to_wei(amount, 'ether'),
+            'value': amount_in_wei,
             'gas': gas_limit,
             'gasPrice': gas_price
         }
@@ -125,7 +127,7 @@ while transaction_count < num_transactions:
         balance = get_balance(web3, account.address)
 
         if balance > 0.002:
-            log_message(f"Wallet {account.address} has balance: {balance} ETH.")
+            log_message(f"Wallet {account.address} is valid and has balance: {balance} ETH.")
             target_wallet = wallets[transaction_count % len(wallets)]
             amount_to_send = random.uniform(0.001, 0.002)
 
@@ -134,18 +136,20 @@ while transaction_count < num_transactions:
             log_message(f"Transaction sent: {tx_hash}")
             random_pause()
 
-            # Send funds back from generated wallet
-            target_balance = get_balance(web3, target_wallet["address"])
+            # Send back maximum from generated wallet
+            target_web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
+            target_balance = get_balance(target_web3, target_wallet["address"])
             max_send = target_balance - 0.0005  # Reserve for gas fees
+
             if max_send > 0:
-                return_tx_hash = send_transaction(web3, target_wallet["private_key"], account.address, max_send)
+                return_tx_hash = send_transaction(target_web3, target_wallet["private_key"], account.address, max_send)
                 log_message(f"Returned funds: {return_tx_hash}")
                 random_pause()
 
             transaction_count += 1
 
         else:
-            log_message(f"Wallet {account.address} has insufficient balance.")
+            log_message(f"Wallet {account.address} has insufficient balance or is invalid.")
             random_pause()
 
         if transaction_count >= num_transactions:
