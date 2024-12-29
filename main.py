@@ -6,7 +6,6 @@ from mnemonic import Mnemonic
 
 # Define network configurations
 NETWORKS = {
-    "BNB": "https://bsc-dataseed.binance.org/",
     "Arbitrum": "https://arb1.arbitrum.io/rpc",
     "Linea": "https://linea-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
     "Base": "https://mainnet.base.org/",
@@ -55,11 +54,11 @@ def random_pause():
 # User input
 num_transactions = int(input("Enter the number of transactions: "))
 print("Choose a network:")
-print("1: BNB\n2: Arbitrum\n3: Linea\n4: Base\n5: Polygon\n6: OP\n7: Random")
+print("1: Arbitrum\n2: Linea\n3: Base\n4: Polygon\n5: OP\n6: Random")
 network_choice = int(input("Your choice: "))
 
 # Select network
-if network_choice == 7:
+if network_choice == 6:
     selected_network = random.choice(list(NETWORKS.keys()))
 else:
     selected_network = list(NETWORKS.keys())[network_choice - 1]
