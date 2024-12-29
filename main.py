@@ -47,7 +47,7 @@ def save_to_file(filename, data):
         f.write(data + "\n")
 
 def random_pause():
-    pause_duration = random.randint(30, 300)  # Random pause between 30 seconds and 5 minutes
+    pause_duration = random.randint(5, 7)  # Random pause between 5 and 7 seconds
     print(f"Pausing for {pause_duration} seconds...")
     time.sleep(pause_duration)
 
