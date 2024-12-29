@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from web3 import Web3
 from mnemonic import Mnemonic
-from bip32utils import BIP32Key  # Для правильной генерации приватных ключей
+from eth_account import Account
 
 # Define network configurations
 NETWORKS = {
@@ -17,19 +17,16 @@ NETWORKS = {
 # Helper functions
 def generate_wallet():
     mnemo = Mnemonic("english")
-    phrase = mnemo.generate(strength=128)
-    seed = mnemo.to_seed(phrase)
-    bip32_root_key_obj = BIP32Key.fromEntropy(seed)
-    private_key = bip32_root_key_obj.ChildKey(0).ChildKey(0).PrivateKey().hex()  # Приватный ключ с использованием BIP32
-    account = Web3().eth.account.from_key(private_key)
+    phrase = mnemo.generate(strength=128)  # Generate mnemonic phrase
+    acct = Account.from_mnemonic(phrase)  # Generate wallet from mnemonic
     return {
         "mnemonic": phrase,
-        "private_key": private_key,
-        "address": account.address
+        "private_key": acct.privateKey.hex(),
+        "address": acct.address
     }
 
 def get_balance(web3, address):
-    return web3.eth.get_balance(address) / 10 ** 18  # Баланс в ETH
+    return web3.eth.get_balance(address) / 10 ** 18  # Convert balance to ETH
 
 def send_transaction(web3, private_key, to_address, amount):
     try:
@@ -38,10 +35,10 @@ def send_transaction(web3, private_key, to_address, amount):
         gas_price = web3.eth.gas_price
         gas_limit = 21000
         
-        # Оценка стоимости газа
+        # Estimate gas fee
         gas_fee_estimate = gas_limit * gas_price
         
-        # Проверка, достаточно ли средств
+        # Check if the balance is sufficient for the transaction
         balance = get_balance(web3, account.address)
         total_cost = gas_fee_estimate + amount
         if balance < total_cost:
@@ -136,7 +133,7 @@ while transaction_count < num_transactions:
 
             # Send funds back from generated wallet
             target_balance = get_balance(web3, target_wallet["address"])
-            max_send = target_balance - 0.0005  # Оставляем немного для газовых сборов
+            max_send = target_balance - 0.0005  # Reserve for gas fees
             if max_send > 0:
                 return_tx_hash = send_transaction(web3, target_wallet["private_key"], account.address, max_send)
                 log_message(f"Returned funds: {return_tx_hash}")
