@@ -24,7 +24,7 @@ def generate_wallet():
     acct = Account.from_mnemonic(phrase)  # Generate wallet from mnemonic
     return {
         "mnemonic": phrase,
-        "private_key": acct.privateKey.hex(),
+        "private_key": acct._private_key.hex(),
         "address": acct.address
     }
 
