@@ -37,28 +37,24 @@ def send_transaction(web3, private_key, to_address, amount):
         gas_price = web3.eth.gas_price
         gas_limit = 21000
 
-        # Estimate gas fee in wei
         gas_fee_estimate = gas_limit * gas_price
-
-        # Convert amount to wei
         amount_in_wei = web3.to_wei(amount, 'ether')
+        balance = web3.eth.get_balance(account.address)
 
-        # Check if the balance is sufficient for the transaction
-        balance = web3.eth.get_balance(account.address)  # Balance in wei
-        total_cost = gas_fee_estimate + amount_in_wei
-        if balance < total_cost:
-            raise ValueError(f"Insufficient funds for transaction. Balance: {balance / 10**18} ETH, Required: {total_cost / 10**18} ETH")
+        if balance < gas_fee_estimate + amount_in_wei:
+            raise ValueError(f"Insufficient funds for transaction. Balance: {balance / 10**18} ETH, Required: {(gas_fee_estimate + amount_in_wei) / 10**18} ETH")
 
         tx = {
             'nonce': nonce,
             'to': to_address,
             'value': amount_in_wei,
             'gas': gas_limit,
-            'gasPrice': gas_price
+            'gasPrice': gas_price,
         }
         signed_tx = web3.eth.account.sign_transaction(tx, private_key)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
         return web3.to_hex(tx_hash)
+
     except ValueError as e:
         log_message(f"Transaction failed: {e}")
         raise
@@ -132,26 +128,30 @@ while transaction_count < num_transactions:
             amount_to_send = random.uniform(0.001, 0.002)
 
             # Send random amount
-            tx_hash = send_transaction(web3, private_key, target_wallet["address"], amount_to_send)
-            log_message(f"Transaction sent: {tx_hash}")
-            random_pause()
-
-            # Send back maximum from generated wallet
-            target_web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
-            target_balance = get_balance(target_web3, target_wallet["address"])
-            max_send = target_balance - 0.0005  # Reserve for gas fees
-
-            if max_send > 0.0001:  # Ensure there is enough to send
-                try:
-                    return_tx_hash = send_transaction(target_web3, target_wallet["private_key"], account.address, max_send)
-                    log_message(f"Returned funds: {return_tx_hash}")
-                except ValueError as e:
-                    log_message(f"Failed to return funds: {e}")
+            try:
+                tx_hash = send_transaction(web3, private_key, target_wallet["address"], amount_to_send)
+                log_message(f"Transaction sent: {tx_hash}")
                 random_pause()
-            else:
-                log_message(f"Insufficient funds to return from {target_wallet['address']} (balance: {target_balance} ETH).")
 
-            transaction_count += 1
+                # Send back maximum from generated wallet
+                target_web3 = Web3(Web3.HTTPProvider(NETWORKS[selected_network]))
+                target_balance = get_balance(target_web3, target_wallet["address"])
+                max_send = target_balance - 0.0005  # Reserve for gas fees
+
+                if max_send > 0.0001:  # Ensure there is enough to send
+                    try:
+                        return_tx_hash = send_transaction(target_web3, target_wallet["private_key"], account.address, max_send)
+                        log_message(f"Returned funds: {return_tx_hash}")
+                    except ValueError as e:
+                        log_message(f"Failed to return funds: {e}")
+                    random_pause()
+                else:
+                    log_message(f"Insufficient funds to return from {target_wallet['address']} (balance: {target_balance} ETH).")
+
+                transaction_count += 1
+
+            except ValueError as e:
+                log_message(f"Failed to send transaction from {account.address}: {e}")
 
         else:
             log_message(f"Wallet {account.address} has insufficient balance or is invalid.")
