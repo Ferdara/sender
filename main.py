@@ -33,35 +33,44 @@ def get_balance(web3, address):
 def send_transaction(web3, private_key, to_address, amount):
     try:
         account = web3.eth.account.from_key(private_key)
-        nonce = web3.eth.get_transaction_count(account.address)
+        sender_address = account.address
+        log_message(f"Sender address derived: {sender_address}")
+
+        nonce = web3.eth.get_transaction_count(sender_address)
         gas_price = web3.eth.gas_price
-        gas_limit = 21000
 
-        # Estimate gas fee in wei
-        gas_fee_estimate = gas_limit * gas_price
-
-        # Convert amount to wei
+        # Перевод суммы в wei
         amount_in_wei = web3.to_wei(amount, 'ether')
 
-        # Check if the balance is sufficient for the transaction
-        balance = web3.eth.get_balance(account.address)  # Balance in wei
-        total_cost = gas_fee_estimate + amount_in_wei
-        if balance < total_cost:
-            raise ValueError(f"Insufficient funds for transaction. Balance: {balance / 10**18} ETH, Required: {total_cost / 10**18} ETH")
-
+        # Формирование транзакции без gas
         tx = {
             'nonce': nonce,
             'to': to_address,
             'value': amount_in_wei,
-            'gas': gas_limit,
             'gasPrice': gas_price
         }
+
+        # Оценка газа
+        gas_limit = web3.eth.estimate_gas(tx)
+        tx['gas'] = gas_limit
+
+        # Проверка баланса
+        balance = web3.eth.get_balance(sender_address)
+        total_cost = gas_limit * gas_price + amount_in_wei
+        if balance < total_cost:
+            raise ValueError(f"Insufficient funds for transaction. Balance: {balance / 10**18} ETH, Required: {total_cost / 10**18} ETH")
+
+        # Подписание транзакции
         signed_tx = web3.eth.account.sign_transaction(tx, private_key)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
         return web3.to_hex(tx_hash)
     except ValueError as e:
         log_message(f"Transaction failed: {e}")
         raise
+    except Exception as e:
+        log_message(f"Unexpected error: {e}")
+        raise
+
 
 def save_to_file(filename, data):
     with open(filename, 'a') as f:
